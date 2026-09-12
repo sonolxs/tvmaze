@@ -1,0 +1,16 @@
+package com.example.tvmaze.dto.response;
+
+import lombok.Builder;
+import lombok.Data;
+
+import java.util.List;
+
+@Data
+@Builder
+public class ShowSearchResponse {
+    private Long id;
+    private String name;
+    private String channel;
+    private String summary;
+    private List<String> genres;
+}
