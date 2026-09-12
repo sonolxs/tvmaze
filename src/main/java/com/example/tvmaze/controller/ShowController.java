@@ -1,5 +1,6 @@
 package com.example.tvmaze.controller;
 
+import com.example.tvmaze.dto.response.ShowResponse;
 import com.example.tvmaze.dto.response.ShowSearchResponse;
 import com.example.tvmaze.service.ShowService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -8,10 +9,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
@@ -35,5 +33,16 @@ public class ShowController {
         }
 
         return ResponseEntity.ok(showService.searchShows(query));
+    }
+
+    @Operation(summary = "Get show by ID")
+    @ApiResponse(responseCode = "200", description = "Show found")
+    @ApiResponse(responseCode = "404", description = "Show not found")
+    @GetMapping("/{id}")
+    public ResponseEntity<ShowResponse> getShowById(
+            @Parameter(description = "TVMaze show ID", required = true)
+            @PathVariable("id") Long id) {
+
+        return ResponseEntity.ok(showService.getShowById(id));
     }
 }

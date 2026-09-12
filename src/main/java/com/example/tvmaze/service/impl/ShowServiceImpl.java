@@ -1,7 +1,9 @@
 package com.example.tvmaze.service.impl;
 
+import com.example.tvmaze.dto.response.ShowResponse;
 import com.example.tvmaze.dto.response.ShowSearchResponse;
 import com.example.tvmaze.dto.tvmaze.TvMazeSearchResult;
+import com.example.tvmaze.dto.tvmaze.TvMazeShow;
 import com.example.tvmaze.exception.ExternalApiException;
 import com.example.tvmaze.mapper.ShowMapper;
 import com.example.tvmaze.service.ShowService;
@@ -9,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 import java.util.Collections;
@@ -46,6 +49,26 @@ public class ShowServiceImpl implements ShowService {
         } catch (Exception ex) {
             log.error("Error consuming TVMaze search API", ex);
             throw new ExternalApiException("Error consuming TVMaze search API", ex);
+        }
+    }
+
+    @Override
+    public ShowResponse getShowById(Long id) {
+        log.info("Fetching show with id={}", id);
+        try {
+            TvMazeShow show = tvMazeRestClient.get()
+                    .uri("/shows/{id}", id)
+                    .retrieve()
+                    .body(TvMazeShow.class);
+
+            return showMapper.toShowResponse(show);
+
+        } catch (HttpClientErrorException.NotFound ex) {
+            log.warn("Show with id={} not found in TVMaze", id);
+            throw ex;
+        } catch (Exception ex) {
+            log.error("Error consuming TVMaze show API for id={}", id, ex);
+            throw new ExternalApiException("Error consuming TVMaze show API", ex);
         }
     }
 }

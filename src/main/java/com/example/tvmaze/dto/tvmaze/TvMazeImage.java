@@ -5,9 +5,7 @@ import lombok.Data;
 
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class TvMazeNetwork {
-    private Long id;
-    private String name;
-    private TvMazeCountry country;
-    private String officialSite;
+public class TvMazeImage {
+    private String medium;
+    private String original;
 }
