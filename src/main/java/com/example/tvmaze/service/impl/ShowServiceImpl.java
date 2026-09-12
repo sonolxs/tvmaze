@@ -55,7 +55,6 @@ public class ShowServiceImpl implements ShowService {
                     .map(TvMazeSearchResult::getShow)
                     .toList();
 
-            // Single query to fetch all comments for the resulting shows (avoid N+1)
             List<Long> showIds = shows.stream()
                     .map(TvMazeShow::getId)
                     .toList();
@@ -85,33 +84,42 @@ public class ShowServiceImpl implements ShowService {
     public ShowResponse getShowById(Long id) {
         log.info("Fetching show with id={}", id);
 
+        ShowResponse response;
+
         Optional<ShowDocument> cached = showRepository.findById(id);
         if (cached.isPresent()) {
             log.info("Cache HIT for show id={}", id);
-            return showMapper.toShowResponse(cached.get());
+            response = showMapper.toShowResponse(cached.get());
+        } else {
+            log.info("Cache MISS for show id={}, calling TVMaze API", id);
+            try {
+                TvMazeShow show = tvMazeRestClient.get()
+                        .uri("/shows/{id}", id)
+                        .retrieve()
+                        .body(TvMazeShow.class);
+
+                response = showMapper.toShowResponse(show);
+
+                ShowDocument document = showMapper.toDocument(response);
+                showRepository.save(document);
+                log.info("Show id={} saved to MongoDB cache", id);
+
+            } catch (HttpClientErrorException.NotFound ex) {
+                log.warn("Show with id={} not found in TVMaze", id);
+                throw ex;
+            } catch (Exception ex) {
+                log.error("Error consuming TVMaze show API for id={}", id, ex);
+                throw new ExternalApiException("Error consuming TVMaze show API", ex);
+            }
         }
-        log.info("Cache MISS for show id={}, calling TVMaze API", id);
 
-        try {
-            TvMazeShow show = tvMazeRestClient.get()
-                    .uri("/shows/{id}", id)
-                    .retrieve()
-                    .body(TvMazeShow.class);
+        // Attach comments (always fresh, not cached)
+        List<CommentResponse> comments = commentRepository.findByShowId(id)
+                .stream()
+                .map(showMapper::toCommentResponse)
+                .toList();
+        response.setComments(comments);
 
-            ShowResponse response = showMapper.toShowResponse(show);
-
-            ShowDocument document = showMapper.toDocument(response);
-            showRepository.save(document);
-            log.info("Show id={} saved to MongoDB cache", id);
-
-            return response;
-
-        } catch (HttpClientErrorException.NotFound ex) {
-            log.warn("Show with id={} not found in TVMaze", id);
-            throw ex;
-        } catch (Exception ex) {
-            log.error("Error consuming TVMaze show API for id={}", id, ex);
-            throw new ExternalApiException("Error consuming TVMaze show API", ex);
-        }
+        return response;
     }
 }

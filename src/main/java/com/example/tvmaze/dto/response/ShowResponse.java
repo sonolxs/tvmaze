@@ -32,6 +32,7 @@ public class ShowResponse {
     private String summary;
     private Long updated;
     private LinksResponse links;
+    private List<CommentResponse> comments;
 
     @Data
     @Builder
@@ -92,4 +93,5 @@ public class ShowResponse {
         private String href;
         private String name;
     }
+
 }
