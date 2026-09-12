@@ -6,6 +6,8 @@ import com.example.tvmaze.dto.tvmaze.TvMazeSearchResult;
 import com.example.tvmaze.dto.tvmaze.TvMazeShow;
 import com.example.tvmaze.exception.ExternalApiException;
 import com.example.tvmaze.mapper.ShowMapper;
+import com.example.tvmaze.model.ShowDocument;
+import com.example.tvmaze.repository.ShowRepository;
 import com.example.tvmaze.service.ShowService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +18,7 @@ import org.springframework.web.client.RestClient;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -24,6 +27,7 @@ public class ShowServiceImpl implements ShowService {
 
     private final RestClient tvMazeRestClient;
     private final ShowMapper showMapper;
+    private final ShowRepository showRepository;
 
     @Override
     public List<ShowSearchResponse> searchShows(String query) {
@@ -55,13 +59,30 @@ public class ShowServiceImpl implements ShowService {
     @Override
     public ShowResponse getShowById(Long id) {
         log.info("Fetching show with id={}", id);
+
+        // 1. Check cache in MongoDB
+        Optional<ShowDocument> cached = showRepository.findById(id);
+        if (cached.isPresent()) {
+            log.info("Cache HIT for show id={}", id);
+            return showMapper.toShowResponse(cached.get());
+        }
+        log.info("Cache MISS for show id={}, calling TVMaze API", id);
+
+        // 2. Cache miss -> call TVMaze
         try {
             TvMazeShow show = tvMazeRestClient.get()
                     .uri("/shows/{id}", id)
                     .retrieve()
                     .body(TvMazeShow.class);
 
-            return showMapper.toShowResponse(show);
+            ShowResponse response = showMapper.toShowResponse(show);
+
+            // 3. Save to MongoDB
+            ShowDocument document = showMapper.toDocument(response);
+            showRepository.save(document);
+            log.info("Show id={} saved to MongoDB cache", id);
+
+            return response;
 
         } catch (HttpClientErrorException.NotFound ex) {
             log.warn("Show with id={} not found in TVMaze", id);
