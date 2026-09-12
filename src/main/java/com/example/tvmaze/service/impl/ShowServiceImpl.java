@@ -1,12 +1,15 @@
 package com.example.tvmaze.service.impl;
 
+import com.example.tvmaze.dto.response.CommentResponse;
 import com.example.tvmaze.dto.response.ShowResponse;
 import com.example.tvmaze.dto.response.ShowSearchResponse;
 import com.example.tvmaze.dto.tvmaze.TvMazeSearchResult;
 import com.example.tvmaze.dto.tvmaze.TvMazeShow;
 import com.example.tvmaze.exception.ExternalApiException;
 import com.example.tvmaze.mapper.ShowMapper;
+import com.example.tvmaze.model.CommentDocument;
 import com.example.tvmaze.model.ShowDocument;
+import com.example.tvmaze.repository.CommentRepository;
 import com.example.tvmaze.repository.ShowRepository;
 import com.example.tvmaze.service.ShowService;
 import lombok.RequiredArgsConstructor;
@@ -18,7 +21,9 @@ import org.springframework.web.client.RestClient;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -28,6 +33,7 @@ public class ShowServiceImpl implements ShowService {
     private final RestClient tvMazeRestClient;
     private final ShowMapper showMapper;
     private final ShowRepository showRepository;
+    private final CommentRepository commentRepository;
 
     @Override
     public List<ShowSearchResponse> searchShows(String query) {
@@ -45,9 +51,28 @@ public class ShowServiceImpl implements ShowService {
                 return Collections.emptyList();
             }
 
-            return results.stream()
+            List<TvMazeShow> shows = results.stream()
                     .map(TvMazeSearchResult::getShow)
-                    .map(showMapper::toSearchResponse)
+                    .toList();
+
+            // Single query to fetch all comments for the resulting shows (avoid N+1)
+            List<Long> showIds = shows.stream()
+                    .map(TvMazeShow::getId)
+                    .toList();
+
+            Map<Long, List<CommentResponse>> commentsByShowId = commentRepository
+                    .findByShowIdIn(showIds)
+                    .stream()
+                    .collect(Collectors.groupingBy(
+                            CommentDocument::getShowId,
+                            Collectors.mapping(showMapper::toCommentResponse, Collectors.toList())
+                    ));
+
+            return shows.stream()
+                    .map(show -> showMapper.toSearchResponse(
+                            show,
+                            commentsByShowId.getOrDefault(show.getId(), List.of())
+                    ))
                     .toList();
 
         } catch (Exception ex) {
@@ -60,7 +85,6 @@ public class ShowServiceImpl implements ShowService {
     public ShowResponse getShowById(Long id) {
         log.info("Fetching show with id={}", id);
 
-        // 1. Check cache in MongoDB
         Optional<ShowDocument> cached = showRepository.findById(id);
         if (cached.isPresent()) {
             log.info("Cache HIT for show id={}", id);
@@ -68,7 +92,6 @@ public class ShowServiceImpl implements ShowService {
         }
         log.info("Cache MISS for show id={}, calling TVMaze API", id);
 
-        // 2. Cache miss -> call TVMaze
         try {
             TvMazeShow show = tvMazeRestClient.get()
                     .uri("/shows/{id}", id)
@@ -77,7 +100,6 @@ public class ShowServiceImpl implements ShowService {
 
             ShowResponse response = showMapper.toShowResponse(show);
 
-            // 3. Save to MongoDB
             ShowDocument document = showMapper.toDocument(response);
             showRepository.save(document);
             log.info("Show id={} saved to MongoDB cache", id);

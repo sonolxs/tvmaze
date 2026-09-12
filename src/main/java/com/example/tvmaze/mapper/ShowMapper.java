@@ -4,16 +4,19 @@ import com.example.tvmaze.dto.response.ShowResponse;
 import com.example.tvmaze.dto.response.ShowSearchResponse;
 import com.example.tvmaze.dto.tvmaze.*;
 import org.springframework.stereotype.Component;
-
+import com.example.tvmaze.dto.response.CommentResponse;
+import com.example.tvmaze.model.CommentDocument;
 import com.example.tvmaze.model.ShowDocument;
 import com.example.tvmaze.dto.response.ShowResponse;
+
+import java.util.List;
 
 @Component
 public class ShowMapper {
 
     // ---------- SEARCH ----------
 
-    public ShowSearchResponse toSearchResponse(TvMazeShow show) {
+    public ShowSearchResponse toSearchResponse(TvMazeShow show, List<CommentResponse> comments) {
         if (show == null) {
             return null;
         }
@@ -23,6 +26,7 @@ public class ShowMapper {
                 .channel(resolveChannelName(show))
                 .summary(show.getSummary())
                 .genres(show.getGenres())
+                .comments(comments != null ? comments : List.of())
                 .build();
     }
 
@@ -298,5 +302,12 @@ public class ShowMapper {
     private ShowResponse.LinkResponse mapLinkFromDoc(ShowDocument.Link l) {
         if (l == null) return null;
         return ShowResponse.LinkResponse.builder().href(l.getHref()).name(l.getName()).build();
+    }
+    public CommentResponse toCommentResponse(CommentDocument doc) {
+        if (doc == null) return null;
+        return CommentResponse.builder()
+                .comment(doc.getComment())
+                .rating(doc.getRating())
+                .build();
     }
 }

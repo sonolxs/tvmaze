@@ -13,4 +13,5 @@ public class ShowSearchResponse {
     private String channel;
     private String summary;
     private List<String> genres;
+    private List<CommentResponse> comments;
 }
