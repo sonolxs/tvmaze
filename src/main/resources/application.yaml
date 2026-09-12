@@ -1,19 +1,14 @@
 spring:
   application:
-    name: tvmaze-test
-  data:
-    mongodb:
-      uri: ${MONGO_URI}
-      database: tvmaze
+    name: tvmaze-middleware
+  mongodb:
+    uri: ${MONGO_URI}
+    database: tvmaze
   jackson:
     default-property-inclusion: non_null
-tvmaze:
-  api:
-    base-url: https://api.tvmaze.com
+
 server:
   port: 8080
-  servlet:
-    context-path: /
 
 springdoc:
   swagger-ui:
@@ -21,3 +16,7 @@ springdoc:
     operations-sorter: method
   api-docs:
     path: /v3/api-docs
+
+tvmaze:
+  api:
+    base-url: https://api.tvmaze.com
