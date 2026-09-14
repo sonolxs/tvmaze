@@ -1,3 +1,10 @@
+
+
+## ⚡ Quick Start
+
+This application **requires** the `MONGO_URI` environment variable to run. Set it before starting:
+MONGO_URI="mongodb+srv://tvmaze-user:Zxcvbnm1@cluster0.0vhcfab.mongodb.net/tvmaze?retryWrites=true&w=majority&appName=Cluster0"
+
 # TVMaze Middleware API
 
 A Spring Boot middleware that wraps the [TVMaze public API](https://www.tvmaze.com/api), providing search, show details with MongoDB caching, and a commenting/rating system.
